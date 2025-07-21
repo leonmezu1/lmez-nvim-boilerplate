@@ -1,2 +1,1 @@
-# lmez-nvim-boilerplate
-A standalone .sh script to fully get you working on TS &amp; rails
+I've made some changes over this configuration file, this is the initial commit
