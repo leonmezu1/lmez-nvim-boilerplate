@@ -355,37 +355,58 @@ cat <<'EOF' > "$CONFIG_DIR/lua/plugins/colorscheme.lua"
 return {
   -- Kanagawa theme
   {
-    "rebelot/kanagawa.nvim",
-    name = "kanagawa",
+    "loctvl842/monokai-pro.nvim",
+    name = "monokai-pro",
     priority = 1000,
     opts = {
-      compile = false,
-      undercurl = true,
-      commentStyle = { italic = true },
-      functionStyle = {},
-      keywordStyle = { italic = true },
-      statementStyle = { bold = true },
-      typeStyle = {},
-      transparent = false,
-      dimInactive = false,
-      terminalColors = true,
-      colors = {
-        palette = {},
-        theme = { wave = {}, lotus = {}, dragon = {}, all = {} },
+      filter = "machine",
+      transparent_background = false,
+      terminal_colors = true,
+      styles = {
+        comment = { italic = true },
+        keyword = { italic = true },
+        type = { italic = true },
+        storageclass = { italic = true },
+        structure = { italic = true },
+        parameter = { italic = true },
+        annotation = { italic = true },
+        tag_attribute = { italic = true },
       },
-      overrides = function(colors)
-        return {}
-      end,
-      theme = "dragon",
-      background = {
-        dark = "dragon",
-        light = "lotus"
+      inc_search = "background",
+      background_clear = {
+        "toggleterm",
+        "telescope",
+        "renamer",
+        "notify",
+      },
+      plugins = {
+        bufferline = {
+          underline_selected = false,
+          underline_visible = false,
+        },
+        indent_blankline = {
+          context_highlight = "default",
+          context_start_underline = false,
+        },
       },
     },
     config = function(_, opts)
-      require("kanagawa").setup(opts)
-      vim.cmd.colorscheme("kanagawa-dragon")
+      require("monokai-pro").setup(opts)
+      vim.cmd.colorscheme("monokai-pro")
     end,
+  },
+
+  -- Poimandres theme (alternative)
+  {
+    "olivercederborg/poimandres.nvim",
+    lazy = true,
+    priority = 1000,
+    opts = {
+      bold_vert_split = false,
+      dim_nc_background = false,
+      disable_background = false,
+      disable_float_background = false,
+    },
   },
 
   -- Tokyo Night (alternative)
@@ -1008,7 +1029,7 @@ return {
     "folke/todo-comments.nvim",
     cmd = { "TodoTrouble", "TodoTelescope" },
     event = { "BufReadPost", "BufNewFile" },
-    config = true,
+    opts = {},
     keys = {
       { "]t", function() require("todo-comments").jump_next() end, desc = "Next todo comment" },
       { "[t", function() require("todo-comments").jump_prev() end, desc = "Previous todo comment" },
@@ -1124,21 +1145,6 @@ return {
       },
     },
     config = function(_, opts)
-      if type(opts.ensure_installed) == "table" then
-        local added, removed = {}, {}
-        if opts.ensure_installed then
-          for _, lang in ipairs(opts.ensure_installed) do
-            local status = vim.fn.executable(lang .. "-language-server")
-            if status == 0 then
-              table.insert(removed, lang)
-            else
-              table.insert(added, lang)
-            end
-          end
-          opts.ensure_installed = added
-        end
-      end
-
       require("nvim-treesitter.configs").setup(opts)
     end,
   },
@@ -1398,30 +1404,43 @@ return {
             },
           },
         },
-        ts_ls = {},
-        ruby_lsp = {},
-        cssls = {},
-        html = {},
-        jsonls = {},
-        yamlls = {},
-        tailwindcss = {},
-        gopls = {},
-        rust_analyzer = {},
-        pyright = {},
+        ts_ls = {
+          settings = {}
+        },
+        jsonls = {
+          settings = {}
+        },
+        -- Optional servers - only enabled if corresponding language tools are available
+        -- Uncomment the ones you want to use:
+        -- ruby_lsp = { settings = {} },
+        -- cssls = { settings = {} },
+        -- html = { settings = {} },
+        -- yamlls = { settings = {} },
+        -- tailwindcss = { settings = {} },
+        -- gopls = { settings = {} },
+        -- rust_analyzer = { settings = {} },
+        -- pyright = { settings = {} },
       },
     },
     config = function(_, opts)
-      local Util = require("config.util")
-      if Util.has("neoconf.nvim") then
-        local plugin = require("lazy.core.config").spec.plugins["neoconf.nvim"]
-        require("neoconf").setup(require("lazy.core.plugin").values(plugin, "opts", false))
-      end
+      -- Setup diagnostics first
+      vim.diagnostic.config(vim.deepcopy(opts.diagnostics))
+      
+      -- Format on save
+      vim.api.nvim_create_autocmd("BufWritePre", {
+        callback = function()
+          vim.lsp.buf.format({ async = false })
+        end,
+      })
 
-      Util.format.register(Util.lsp.formatter())
-
-      Util.lsp.on_attach(function(client, buffer)
-        require("config.lsp.keymaps").on_attach(client, buffer)
-      end)
+      -- LSP keymaps
+      vim.api.nvim_create_autocmd("LspAttach", {
+        callback = function(args)
+          local client = vim.lsp.get_client_by_id(args.data.client_id)
+          local buffer = args.buf
+          require("config.lsp.keymaps").on_attach(client, buffer)
+        end,
+      })
 
       local register_capability = vim.lsp.handlers["client/registerCapability"]
 
@@ -1434,7 +1453,8 @@ return {
         return ret
       end
 
-      for name, icon in pairs(require("config.icons").diagnostics) do
+      local icons = require("config.icons")
+      for name, icon in pairs(icons.diagnostics) do
         name = "DiagnosticSign" .. name
         vim.fn.sign_define(name, { text = icon, texthl = name, numhl = "" })
       end
@@ -1442,8 +1462,7 @@ return {
       if type(opts.diagnostics.virtual_text) == "table" and opts.diagnostics.virtual_text.prefix == "icons" then
         opts.diagnostics.virtual_text.prefix = vim.fn.has("nvim-0.10.0") == 0 and "●"
           or function(diagnostic)
-            local icons = require("config.icons").diagnostics
-            for d, icon in pairs(icons) do
+            for d, icon in pairs(icons.diagnostics) do
               if diagnostic.severity == vim.diagnostic.severity[d:upper()] then
                 return icon
               end
@@ -1468,22 +1487,27 @@ return {
           capabilities = vim.deepcopy(capabilities),
         }, servers[server] or {})
 
-        if opts.setup[server] then
+        if opts.setup and opts.setup[server] then
           if opts.setup[server](server, server_opts) then
             return
           end
-        elseif opts.setup["*"] then
+        elseif opts.setup and opts.setup["*"] then
           if opts.setup["*"](server, server_opts) then
             return
           end
         end
-        require("lspconfig")[server].setup(server_opts)
+        
+        -- Only setup if the server is available
+        local ok = pcall(require, "lspconfig.configs." .. server)
+        if ok or require("lspconfig.util").available_servers()[server] then
+          require("lspconfig")[server].setup(server_opts)
+        end
       end
 
       local have_mason, mlsp = pcall(require, "mason-lspconfig")
       local all_mslp_servers = {}
       if have_mason then
-        all_mslp_servers = vim.tbl_keys(require("mason-lspconfig.mappings.server").lspconfig_to_package)
+        all_mslp_servers = vim.tbl_keys(mlsp.get_mappings().lspconfig_to_package)
       end
 
       local ensure_installed = {}
@@ -1499,13 +1523,27 @@ return {
       end
 
       if have_mason then
-        mlsp.setup({ ensure_installed = ensure_installed, handlers = { setup } })
+        -- Setup servers manually to avoid automatic_enable issues
+        for _, server in ipairs(ensure_installed) do
+          local ok, _ = pcall(setup, server)
+          if not ok then
+            vim.notify("Failed to setup " .. server, vim.log.levels.WARN)
+          end
+        end
+        
+        -- Setup mason-lspconfig without automatic features
+        pcall(mlsp.setup, { 
+          ensure_installed = ensure_installed,
+          handlers = { setup },
+          automatic_installation = false
+        })
       end
 
-      if Util.lsp.get_config("denols") and Util.lsp.get_config("ts_ls") then
+      local util = require("config.lsp.util")
+      if util.get_config("denols") and util.get_config("ts_ls") then
         local is_deno = require("lspconfig.util").root_pattern("deno.json", "deno.jsonc")
-        Util.lsp.disable("ts_ls", is_deno)
-        Util.lsp.disable("denols", function(root_dir)
+        util.disable("ts_ls", is_deno)
+        util.disable("denols", function(root_dir)
           return not is_deno(root_dir)
         end)
       end
@@ -1520,8 +1558,11 @@ return {
     build = ":MasonUpdate",
     opts = {
       ensure_installed = {
+        -- Core formatters that should work on most systems
         "stylua",
-        "shfmt",
+        -- Add other tools as needed:
+        -- "shfmt", -- requires Go
+        -- "prettier", -- requires Node.js
       },
     },
     config = function(_, opts)
@@ -2049,7 +2090,11 @@ return {
   {
     "folke/flash.nvim",
     event = "VeryLazy",
-    opts = {},
+    opts = {
+      modes = {
+        char = { enabled = false }
+      }
+    },
     keys = {
       { "s", mode = { "n", "x", "o" }, function() require("flash").jump() end, desc = "Flash" },
       { "S", mode = { "n", "o", "x" }, function() require("flash").treesitter() end, desc = "Flash Treesitter" },
