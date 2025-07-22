@@ -359,7 +359,7 @@ return {
     name = "monokai-pro",
     priority = 1000,
     opts = {
-      filter = "machine",
+      filter = "octagon",
       transparent_background = false,
       terminal_colors = true,
       styles = {
@@ -1410,9 +1410,22 @@ return {
         jsonls = {
           settings = {}
         },
-        -- Optional servers - only enabled if corresponding language tools are available
-        -- Uncomment the ones you want to use:
-        -- ruby_lsp = { settings = {} },
+        -- Ruby LSP
+        ruby_lsp = {
+          settings = {
+            rubyLsp = {
+              enabledFeatures = {
+                "documentSymbols",
+                "documentHighlight", 
+                "foldingRange",
+                "selectionRange",
+                "semanticHighlighting",
+                "formatting",
+                "codeActions"
+              }
+            }
+          }
+        },
         -- cssls = { settings = {} },
         -- html = { settings = {} },
         -- yamlls = { settings = {} },
@@ -2122,14 +2135,40 @@ return {
 }
 EOF
 
+# === INSTALL LANGUAGE SERVERS ===
+
+echo "🔧 Installing language servers..."
+
+# Install Ruby LSP server (for Ruby/Rails development)
+if command -v gem >/dev/null 2>&1; then
+  echo "📦 Installing Ruby LSP server..."
+  gem install ruby-lsp
+  if [ $? -eq 0 ]; then
+    echo "✅ Ruby LSP server installed successfully"
+  else
+    echo "⚠️  Ruby LSP installation failed - install manually with: gem install ruby-lsp"
+  fi
+else
+  echo "⚠️  Ruby not found - install Ruby to get Ruby LSP support"
+fi
+
+# Check for Node.js and suggest TypeScript LSP
+if command -v npm >/dev/null 2>&1; then
+  echo "✅ Node.js detected - TypeScript LSP will be available via Mason"
+else
+  echo "⚠️  Node.js not found - install Node.js for TypeScript/JavaScript LSP support"
+fi
+
 echo "✅ Modern Neovim configuration setup complete!"
 echo ""
 echo "🎉 Features included:"
-echo "   • Beautiful UI with Kanagawa Dragon theme"
+echo "   • Beautiful UI with Monokai Pro theme"
 echo "   • Fuzzy finding with Telescope"
 echo "   • File explorer with Neo-tree"
 echo "   • Git integration with Gitsigns"
 echo "   • LSP support with Mason"
+echo "   • Ruby/Rails LSP support (ruby-lsp)"
+echo "   • TypeScript/JavaScript support"
 echo "   • Smart completion with nvim-cmp"
 echo "   • Syntax highlighting with Treesitter"
 echo "   • Terminal integration with ToggleTerm"
@@ -2138,5 +2177,15 @@ echo "   • Advanced text objects"
 echo "   • Smooth scrolling and folding"
 echo "   • And much more!"
 echo ""
-echo "🚀 Start Neovim to install all plugins automatically!"
-echo "   Run: nvim"
+echo "🚀 Next Steps:"
+echo "   1. Start Neovim: nvim"
+echo "   2. Wait for plugins to install automatically"
+echo "   3. Run :Mason to install additional language servers"
+echo "   4. Run :checkhealth to verify everything works"
+echo ""
+echo "💡 For Ruby/Rails projects:"
+echo "   • Ruby LSP server installed automatically"
+echo "   • Open any .rb file to activate Ruby support"
+echo "   • Use gd, K, <leader>ca for LSP features"
+echo ""
+echo "📚 Documentation available in docs/ folder"
